@@ -144,6 +144,12 @@ const SendPackageWithMap = () => {
             return;
         }
 
+        // Show loading state
+        const loadingMessage = isPickup ? 'جاري تحديد موقع الاستلام...' : 'جاري تحديد موقع التوصيل...';
+        const originalButton = document.activeElement;
+        originalButton.textContent = loadingMessage;
+        originalButton.disabled = true;
+
         navigator.geolocation.getCurrentPosition(
             async (position) => {
                 const { latitude, longitude } = position.coords;
@@ -167,17 +173,75 @@ const SendPackageWithMap = () => {
                         }));
                         setDeliverySearchQuery(formattedAddress);
                     }
+
+                    alert('✅ تم تحديد الموقع بنجاح!');
                 } catch (error) {
-                    alert('فشل في تحديد العنوان من الموقع');
+                    console.error('Reverse geocoding error:', error);
+                    // Even if reverse geocoding fails, we can still use the coordinates
+                    if (isPickup) {
+                        setFormData(prev => ({
+                            ...prev,
+                            pickupAddress: `موقع GPS: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`,
+                            pickupCoordinates: { lat: latitude, lon: longitude }
+                        }));
+                        setPickupSearchQuery(`موقع GPS: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`);
+                    } else {
+                        setFormData(prev => ({
+                            ...prev,
+                            deliveryAddress: `موقع GPS: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`,
+                            deliveryCoordinates: { lat: latitude, lon: longitude }
+                        }));
+                        setDeliverySearchQuery(`موقع GPS: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`);
+                    }
+                    alert('تم تحديد الإحداثيات ولكن فشل في تحويلها لعنوان. يمكنك المتابعة.');
+                } finally {
+                    // Reset button
+                    originalButton.textContent = '📍 موقعي الحالي';
+                    originalButton.disabled = false;
                 }
             },
             (error) => {
-                alert('فشل في تحديد الموقع: ' + error.message);
+                console.error('Geolocation error:', error);
+
+                let errorMessage = 'فشل في تحديد الموقع: ';
+                switch (error.code) {
+                    case error.PERMISSION_DENIED:
+                        errorMessage += 'تم رفض الإذن. يرجى السماح للموقع بالوصول لموقعك من إعدادات المتصفح.';
+                        break;
+                    case error.POSITION_UNAVAILABLE:
+                        errorMessage += 'الموقع غير متاح. تأكد من تفعيل GPS أو الاتصال بالإنترنت.';
+                        break;
+                    case error.TIMEOUT:
+                        errorMessage += 'انتهت مهلة الانتظار. يرجى المحاولة مرة أخرى.';
+                        break;
+                    default:
+                        errorMessage += 'خطأ غير معروف.';
+                        break;
+                }
+
+                // Suggest Damascus as fallback
+                const damascusDefault = 'دمشق، سوريا';
+                errorMessage += `\n\nيمكنك البحث يدوياً أو جرب البحث عن "${damascusDefault}"`;
+
+                alert(errorMessage);
+
+                // Reset button
+                originalButton.textContent = '📍 موقعي الحالي';
+                originalButton.disabled = false;
+
+                // Auto-suggest Damascus for Syrian users
+                if (isPickup) {
+                    setPickupSearchQuery(damascusDefault);
+                    searchPickupAddress(damascusDefault);
+                } else {
+                    setDeliverySearchQuery(damascusDefault);
+                    searchDeliveryAddress(damascusDefault);
+                }
             },
             {
-                enableHighAccuracy: true,
-                timeout: 10000,
-                maximumAge: 60000
+                enableHighAccuracy: false, // Changed to false for better compatibility
+                timeout: 15000, // Increased timeout
+                maximumAge: 300000 // 5 minutes cache
             }
         );
     };
@@ -282,6 +346,30 @@ const SendPackageWithMap = () => {
                         </button>
                     </div>
 
+                    {/* Quick location buttons */}
+                    <div style={{ display: 'flex', gap: '5px', marginBottom: '5px', flexWrap: 'wrap' }}>
+                        {['دمشق', 'حلب', 'حمص', 'اللاذقية', 'طرطوس', 'القنطرة'].map(city => (
+                            <button
+                                key={city}
+                                type="button"
+                                onClick={() => {
+                                    setPickupSearchQuery(city + '، سوريا');
+                                    searchPickupAddress(city + '، سوريا');
+                                }}
+                                style={{
+                                    fontSize: '12px',
+                                    padding: '4px 8px',
+                                    backgroundColor: '#f8f9fa',
+                                    border: '1px solid #dee2e6',
+                                    borderRadius: '4px',
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                {city}
+                            </button>
+                        ))}
+                    </div>
+
                     {isSearchingPickup && <div style={{ fontSize: '12px', color: '#666' }}>جاري البحث...</div>}
 
                     {pickupSearchResults.length > 0 && (
@@ -340,6 +428,30 @@ const SendPackageWithMap = () => {
                         >
                             📍 موقعي الحالي
                         </button>
+                    </div>
+
+                    {/* Quick location buttons */}
+                    <div style={{ display: 'flex', gap: '5px', marginBottom: '5px', flexWrap: 'wrap' }}>
+                        {['دمشق', 'حلب', 'حمص', 'اللاذقية', 'طرطوس', 'القنطرة'].map(city => (
+                            <button
+                                key={city}
+                                type="button"
+                                onClick={() => {
+                                    setDeliverySearchQuery(city + '، سوريا');
+                                    searchDeliveryAddress(city + '، سوريا');
+                                }}
+                                style={{
+                                    fontSize: '12px',
+                                    padding: '4px 8px',
+                                    backgroundColor: '#f8f9fa',
+                                    border: '1px solid #dee2e6',
+                                    borderRadius: '4px',
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                {city}
+                            </button>
+                        ))}
                     </div>
 
                     {isSearchingDelivery && <div style={{ fontSize: '12px', color: '#666' }}>جاري البحث...</div>}
