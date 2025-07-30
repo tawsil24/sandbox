@@ -1,70 +1,78 @@
-# Getting Started with Create React App
+# Tawsil Demo
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+AI-Powered Local Delivery Platform Demo built with React and Supabase.
 
-## Available Scripts
+## 🚀 Quick Start
 
-In the project directory, you can run:
+1. **Setup Environment Variables**
+   ```bash
+   cp .env.local.example .env.local
+   # Edit .env.local with your Supabase credentials
+   ```
 
-### `npm start`
+2. **Install Dependencies**
+   ```bash
+   npm install
+   ```
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+3. **Start Development Server**
+   ```bash
+   npm start
+   ```
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+## 📁 Project Structure
 
-### `npm test`
+```
+src/
+├── components/          # React components
+│   ├── SendPackage.js   # User interface for sending packages
+│   ├── DriverDashboard.js # Driver interface for receiving notifications
+│   ├── DeliveryList.js  # Show list of deliveries
+│   └── UserSelector.js  # Switch between user types
+├── services/            # API layer
+│   ├── supabaseClient.js # Supabase configuration
+│   ├── deliveryAPI.js   # Delivery-related API calls
+│   ├── userAPI.js       # User-related API calls
+│   └── driverAPI.js     # Driver-related API calls
+└── utils/               # Utilities
+    ├── constants.js     # App constants
+    └── helpers.js       # Utility functions
+```
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+## 🔧 Environment Variables
 
-### `npm run build`
+Create a `.env.local` file in the root directory:
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+```env
+REACT_APP_SUPABASE_URL=your_supabase_project_url
+REACT_APP_SUPABASE_ANON_KEY=your_supabase_anon_key
+```
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+## 🎯 Features
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+- [ ] User package sending interface
+- [ ] Driver dashboard with real-time notifications
+- [ ] Delivery tracking and status updates
+- [ ] QR code and OTP verification system
+- [ ] Multi-delivery mode support
+- [ ] Real-time updates via Supabase
 
-### `npm run eject`
+## 📱 Demo Flow
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+1. Select user type (Sender/Driver)
+2. Sender creates delivery request
+3. Driver receives real-time notification
+4. Driver accepts/rejects delivery
+5. Track delivery status updates
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+## 🛠️ Next Steps
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+1. Configure your Supabase database using the provided schema
+2. Update environment variables
+3. Implement the component functionality
+4. Test the real-time features
+5. Add styling and UX improvements
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+---
 
-## Learn More
-
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
-
-To learn React, check out the [React documentation](https://reactjs.org/).
-
-### Code Splitting
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
-
-### Analyzing the Bundle Size
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+Built with ❤️ for Syria 🇸🇾
