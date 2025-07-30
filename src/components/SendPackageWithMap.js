@@ -4,6 +4,7 @@ import { deliveryAPI } from '../services/deliveryAPI';
 import { mapAPI } from '../services/mapAPI';
 import { PARCEL_SIZES, DELIVERY_MODES, DEMO_USERS } from '../utils/constants';
 import { calculatePrice, formatSYP, validateDeliveryForm } from '../utils/helpers';
+import MapPicker from './MapPicker';
 
 const SendPackageWithMap = () => {
     const navigate = useNavigate();
@@ -31,6 +32,10 @@ const SendPackageWithMap = () => {
     const [deliverySearchQuery, setDeliverySearchQuery] = useState('');
     const [isSearchingPickup, setIsSearchingPickup] = useState(false);
     const [isSearchingDelivery, setIsSearchingDelivery] = useState(false);
+
+    // Map picker states
+    const [showPickupMap, setShowPickupMap] = useState(false);
+    const [showDeliveryMap, setShowDeliveryMap] = useState(false);
 
     useEffect(() => {
         if (formData.pickupCoordinates && formData.deliveryCoordinates && formData.parcelSize) {
@@ -246,6 +251,62 @@ const SendPackageWithMap = () => {
         );
     };
 
+    // Development helper function for testing coordinates
+    const useTestLocation = (isPickup = true) => {
+        // Damascus center coordinates for testing
+        const testCoordinates = {
+            lat: 33.5138,
+            lon: 36.2765
+        };
+
+        const testAddress = 'دمشق، سوريا (موقع تجريبي)';
+
+        if (isPickup) {
+            setFormData(prev => ({
+                ...prev,
+                pickupAddress: testAddress,
+                pickupCoordinates: testCoordinates
+            }));
+            setPickupSearchQuery(testAddress);
+        } else {
+            setFormData(prev => ({
+                ...prev,
+                deliveryAddress: testAddress,
+                deliveryCoordinates: testCoordinates
+            }));
+            setDeliverySearchQuery(testAddress);
+        }
+
+        alert('✅ تم استخدام موقع تجريبي للاختبار');
+    };
+
+    // Handle map picker selection
+    const handlePickupMapSelect = (locationData) => {
+        setFormData(prev => ({
+            ...prev,
+            pickupAddress: locationData.address,
+            pickupCoordinates: {
+                lat: locationData.lat,
+                lon: locationData.lon
+            }
+        }));
+        setPickupSearchQuery(locationData.address);
+        setShowPickupMap(false);
+    };
+
+    const handleDeliveryMapSelect = (locationData) => {
+        setFormData(prev => ({
+            ...prev,
+            deliveryAddress: locationData.address,
+            deliveryCoordinates: {
+                lat: locationData.lat,
+                lon: locationData.lon
+            }
+        }));
+        setDeliverySearchQuery(locationData.address);
+        setShowDeliveryMap(false);
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
 
@@ -344,6 +405,27 @@ const SendPackageWithMap = () => {
                         >
                             📍 موقعي الحالي
                         </button>
+                        <button
+                            type="button"
+                            className="btn"
+                            onClick={() => setShowPickupMap(true)}
+                            style={{ whiteSpace: 'nowrap', backgroundColor: '#27ae60' }}
+                        >
+                            🗺️ اختر من الخريطة
+                        </button>
+                        {/* Development test button */}
+                        {window.location.hostname === 'localhost' && (
+                            <button
+                                type="button"
+                                className="btn"
+                                // onClick={() => useTestLocation(true)}
+                                onClick={() => { }}
+                                style={{ whiteSpace: 'nowrap', backgroundColor: '#e74c3c', fontSize: '12px' }}
+                                title="للاختبار على localhost"
+                            >
+                                🧪 موقع تجريبي
+                            </button>
+                        )}
                     </div>
 
                     {/* Quick location buttons */}
@@ -428,6 +510,27 @@ const SendPackageWithMap = () => {
                         >
                             📍 موقعي الحالي
                         </button>
+                        <button
+                            type="button"
+                            className="btn"
+                            onClick={() => setShowDeliveryMap(true)}
+                            style={{ whiteSpace: 'nowrap', backgroundColor: '#27ae60' }}
+                        >
+                            🗺️ اختر من الخريطة
+                        </button>
+                        {/* Development test button */}
+                        {window.location.hostname === 'localhost' && (
+                            <button
+                                type="button"
+                                className="btn"
+                                // onClick={() => useTestLocation(false)}
+                                onClick={() => { }}
+                                style={{ whiteSpace: 'nowrap', backgroundColor: '#e74c3c', fontSize: '12px' }}
+                                title="للاختبار على localhost"
+                            >
+                                🧪 موقع تجريبي
+                            </button>
+                        )}
                     </div>
 
                     {/* Quick location buttons */}
@@ -564,6 +667,31 @@ const SendPackageWithMap = () => {
                     {isSubmitting ? 'جاري الإرسال...' : 'إنشاء طلب التوصيل'}
                 </button>
             </form>
+
+            {/* Map Pickers */}
+            <MapPicker
+                isOpen={showPickupMap}
+                onClose={() => setShowPickupMap(false)}
+                onLocationSelect={handlePickupMapSelect}
+                title="اختر موقع الاستلام"
+                initialPosition={
+                    formData.pickupCoordinates ?
+                        { lat: formData.pickupCoordinates.lat, lng: formData.pickupCoordinates.lon } :
+                        { lat: 33.5138, lng: 36.2765 }
+                }
+            />
+
+            <MapPicker
+                isOpen={showDeliveryMap}
+                onClose={() => setShowDeliveryMap(false)}
+                onLocationSelect={handleDeliveryMapSelect}
+                title="اختر موقع التوصيل"
+                initialPosition={
+                    formData.deliveryCoordinates ?
+                        { lat: formData.deliveryCoordinates.lat, lng: formData.deliveryCoordinates.lon } :
+                        { lat: 33.5138, lng: 36.2765 }
+                }
+            />
         </div>
     );
 };
