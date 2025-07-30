@@ -1,4 +1,5 @@
 import { PRICING_CONFIG, PARCEL_SIZES } from './constants';
+import { currencyAPI } from '../services/currencyAPI';
 
 export const generateDeliveryCode = () => {
     return Math.floor(100000 + Math.random() * 900000).toString();
@@ -24,6 +25,35 @@ export const formatSYP = (amount) => {
         currency: 'SYP',
         minimumFractionDigits: 0
     }).format(amount);
+};
+
+export const formatUSD = (amount) => {
+    return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: 'USD',
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    }).format(amount);
+};
+
+export const formatDualCurrency = (sypAmount) => {
+    const usdAmount = currencyAPI.convertSYPToUSD(sypAmount);
+
+    if (usdAmount) {
+        return `${formatSYP(sypAmount)} (${formatUSD(usdAmount)})`;
+    }
+
+    return formatSYP(sypAmount);
+};
+
+export const initializeCurrency = async () => {
+    try {
+        await currencyAPI.getUSDExchangeRate();
+        return true;
+    } catch (error) {
+        console.error('Failed to initialize currency rates:', error);
+        return false;
+    }
 };
 
 export const formatDeliveryStatus = (status) => {

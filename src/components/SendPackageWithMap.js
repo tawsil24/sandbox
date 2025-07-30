@@ -3,8 +3,9 @@ import { useNavigate, Link } from 'react-router-dom';
 import { deliveryAPI } from '../services/deliveryAPI';
 import { mapAPI } from '../services/mapAPI';
 import { PARCEL_SIZES, DELIVERY_MODES, DEMO_USERS } from '../utils/constants';
-import { calculatePrice, formatSYP, validateDeliveryForm } from '../utils/helpers';
+import { calculatePrice, formatSYP, validateDeliveryForm, initializeCurrency } from '../utils/helpers';
 import MapPicker from './MapPicker';
+import PriceDisplay from './PriceDisplay';
 
 const SendPackageWithMap = () => {
     const navigate = useNavigate();
@@ -51,6 +52,11 @@ const SendPackageWithMap = () => {
             setEstimatedPrice(price);
         }
     }, [formData.pickupCoordinates, formData.deliveryCoordinates, formData.parcelSize]);
+
+    useEffect(() => {
+        // Initialize currency rates on component mount
+        initializeCurrency();
+    }, []);
 
     const handleInputChange = (e) => {
         const { name, value } = e.target;
@@ -418,7 +424,6 @@ const SendPackageWithMap = () => {
                             <button
                                 type="button"
                                 className="btn"
-                                // onClick={() => useTestLocation(true)}
                                 onClick={() => { }}
                                 style={{ whiteSpace: 'nowrap', backgroundColor: '#e74c3c', fontSize: '12px' }}
                                 title="للاختبار على localhost"
@@ -523,7 +528,6 @@ const SendPackageWithMap = () => {
                             <button
                                 type="button"
                                 className="btn"
-                                // onClick={() => useTestLocation(false)}
                                 onClick={() => { }}
                                 style={{ whiteSpace: 'nowrap', backgroundColor: '#e74c3c', fontSize: '12px' }}
                                 title="للاختبار على localhost"
@@ -650,10 +654,14 @@ const SendPackageWithMap = () => {
                         borderRadius: '4px',
                         marginBottom: '20px'
                     }}>
-                        <strong>التكلفة المقدرة: {formatSYP(estimatedPrice)}</strong>
-                        <br />
-                        <small>أرباح السائق: {formatSYP(Math.floor(estimatedPrice * 0.70))}</small>
-                        <br />
+                        <div style={{ marginBottom: '8px' }}>
+                            <strong>التكلفة المقدرة: </strong>
+                            <PriceDisplay amount={estimatedPrice} />
+                        </div>
+                        <div style={{ marginBottom: '8px' }}>
+                            <strong>أرباح السائق: </strong>
+                            <PriceDisplay amount={Math.floor(estimatedPrice * 0.70)} />
+                        </div>
                         <small>المسافة: {distance.toFixed(2)} كم</small>
                     </div>
                 )}

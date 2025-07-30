@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom';
 import { deliveryAPI } from '../services/deliveryAPI';
 import { driverAPI } from '../services/driverAPI';
 import { DEMO_USERS, DELIVERY_STATUS } from '../utils/constants';
-import { formatSYP, formatDeliveryMode, formatParcelSize, formatDateTime } from '../utils/helpers';
+import { formatSYP, formatDeliveryMode, formatParcelSize, formatDateTime, initializeCurrency } from '../utils/helpers';
+import PriceDisplay from './PriceDisplay';
 
 const DriverDashboard = () => {
     const [deliveriesByStatus, setDeliveriesByStatus] = useState({
@@ -59,6 +60,9 @@ const DriverDashboard = () => {
 
     useEffect(() => {
         loadDeliveries();
+
+        // Initialize currency rates
+        initializeCurrency();
 
         const subscription = deliveryAPI.subscribeToDeliveries((payload) => {
             if (payload.eventType === 'INSERT' && payload.new.status === 'pending') {
@@ -216,10 +220,10 @@ const DriverDashboard = () => {
                     <strong>إلى:</strong> {delivery.delivery_address?.substring(0, 30)}...
                 </div>
                 <div style={{ marginBottom: '4px' }}>
-                    <strong>المبلغ:</strong> {formatSYP(delivery.total_price)}
+                    <strong>المبلغ:</strong> <PriceDisplay amount={delivery.total_price} />
                 </div>
                 <div style={{ marginBottom: '4px' }}>
-                    <strong>أرباحك:</strong> {formatSYP(delivery.driver_earnings || Math.floor(delivery.total_price * 0.70))}
+                    <strong>أرباحك:</strong> <PriceDisplay amount={delivery.driver_earnings || Math.floor(delivery.total_price * 0.70)} />
                 </div>
             </div>
 
@@ -261,7 +265,7 @@ const DriverDashboard = () => {
     const totalDeliveries = Object.values(deliveriesByStatus).reduce((sum, arr) => sum + arr.length, 0);
 
     return (
-        <div style={{ margin: '0 auto', padding: '20px' }}>
+        <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '20px' }}>
             <div className="navigation" style={{ marginBottom: '20px' }}>
                 <Link to="/">← العودة للرئيسية</Link>
                 <Link to="/deliveries">عرض جميع الطلبات</Link>
