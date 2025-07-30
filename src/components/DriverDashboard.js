@@ -2,19 +2,60 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { deliveryAPI } from '../services/deliveryAPI';
 import { driverAPI } from '../services/driverAPI';
-import { DEMO_USERS } from '../utils/constants';
+import { DEMO_USERS, DELIVERY_STATUS } from '../utils/constants';
 import { formatSYP, formatDeliveryMode, formatParcelSize, formatDateTime } from '../utils/helpers';
 
 const DriverDashboard = () => {
-    const [pendingDeliveries, setPendingDeliveries] = useState([]);
-    const [assignedDeliveries, setAssignedDeliveries] = useState([]);
+    const [deliveriesByStatus, setDeliveriesByStatus] = useState({
+        pending: [],
+        assigned: [],
+        picked_up: [],
+        in_transit: [],
+        delivered: []
+    });
     const [isAvailable, setIsAvailable] = useState(true);
     const [isLoading, setIsLoading] = useState(true);
     const [notification, setNotification] = useState('');
 
-    let CURRENT_USER = DEMO_USERS.DRIVER;
-    // CURRENT_USER = DEMO_USERS.SENDER;
-    const driverId = CURRENT_USER.id;
+    const driverId = DEMO_USERS.DRIVER.id;
+
+    const kanbanColumns = [
+        {
+            status: 'pending',
+            title: 'طلبات جديدة',
+            color: '#f39c12',
+            icon: '📦',
+            actions: ['accept']
+        },
+        {
+            status: 'assigned',
+            title: 'مُسندة إليّ',
+            color: '#3498db',
+            icon: '✅',
+            actions: ['pickup']
+        },
+        {
+            status: 'picked_up',
+            title: 'تم الاستلام',
+            color: '#9b59b6',
+            icon: '📮',
+            actions: ['in_transit']
+        },
+        {
+            status: 'in_transit',
+            title: 'في الطريق',
+            color: '#e67e22',
+            icon: '🚚',
+            actions: ['deliver']
+        },
+        {
+            status: 'delivered',
+            title: 'تم التوصيل',
+            color: '#27ae60',
+            icon: '✅',
+            actions: []
+        }
+    ];
 
     useEffect(() => {
         loadDeliveries();
@@ -22,8 +63,10 @@ const DriverDashboard = () => {
         const subscription = deliveryAPI.subscribeToDeliveries((payload) => {
             if (payload.eventType === 'INSERT' && payload.new.status === 'pending') {
                 setNotification('🔔 طلب توصيل جديد!');
-                loadPendingDeliveries();
+                loadDeliveries();
                 setTimeout(() => setNotification(''), 5000);
+            } else if (payload.eventType === 'UPDATE') {
+                loadDeliveries();
             }
         });
 
@@ -36,26 +79,33 @@ const DriverDashboard = () => {
 
     const loadDeliveries = async () => {
         try {
-            const [pending, assigned] = await Promise.all([
+            const [pending, myDeliveries] = await Promise.all([
                 deliveryAPI.getPendingDeliveries(),
                 deliveryAPI.getDeliveries({ driverId })
             ]);
 
-            setPendingDeliveries(pending || []);
-            setAssignedDeliveries(assigned || []);
+            // Group deliveries by status
+            const grouped = {
+                pending: pending || [],
+                assigned: [],
+                picked_up: [],
+                in_transit: [],
+                delivered: []
+            };
+
+            if (myDeliveries) {
+                myDeliveries.forEach(delivery => {
+                    if (grouped[delivery.status]) {
+                        grouped[delivery.status].push(delivery);
+                    }
+                });
+            }
+
+            setDeliveriesByStatus(grouped);
         } catch (error) {
             console.error('Error loading deliveries:', error);
         } finally {
             setIsLoading(false);
-        }
-    };
-
-    const loadPendingDeliveries = async () => {
-        try {
-            const pending = await deliveryAPI.getPendingDeliveries();
-            setPendingDeliveries(pending || []);
-        } catch (error) {
-            console.error('Error loading pending deliveries:', error);
         }
     };
 
@@ -92,6 +142,114 @@ const DriverDashboard = () => {
         }
     };
 
+    const getActionButton = (delivery, actions) => {
+        if (!actions.length) return null;
+
+        const actionConfig = {
+            accept: {
+                text: 'قبول الطلب',
+                className: 'btn-success',
+                onClick: () => handleAcceptDelivery(delivery.id),
+                disabled: !isAvailable
+            },
+            pickup: {
+                text: 'تم الاستلام',
+                className: 'btn',
+                onClick: () => handleStatusUpdate(delivery.id, 'picked_up')
+            },
+            in_transit: {
+                text: 'في الطريق',
+                className: 'btn',
+                onClick: () => handleStatusUpdate(delivery.id, 'in_transit')
+            },
+            deliver: {
+                text: 'تم التوصيل',
+                className: 'btn-success',
+                onClick: () => handleStatusUpdate(delivery.id, 'delivered')
+            }
+        };
+
+        const action = actionConfig[actions[0]];
+        if (!action) return null;
+
+        return (
+            <button
+                className={`btn ${action.className}`}
+                onClick={action.onClick}
+                disabled={action.disabled}
+                style={{ width: '100%', marginTop: '10px' }}
+            >
+                {action.text}
+            </button>
+        );
+    };
+
+    const DeliveryCard = ({ delivery, actions }) => (
+        <div
+            style={{
+                backgroundColor: 'white',
+                border: '1px solid #ddd',
+                borderRadius: '8px',
+                padding: '12px',
+                marginBottom: '10px',
+                boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                transition: 'transform 0.2s',
+                cursor: 'pointer'
+            }}
+            onMouseEnter={(e) => e.target.style.transform = 'translateY(-2px)'}
+            onMouseLeave={(e) => e.target.style.transform = 'translateY(0)'}
+        >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+                <h4 style={{ margin: 0, fontSize: '14px', fontWeight: 'bold' }}>
+                    {delivery.delivery_code}
+                </h4>
+                <span style={{ fontSize: '12px', color: '#666' }}>
+                    {formatParcelSize(delivery.parcel_size)}
+                </span>
+            </div>
+
+            <div style={{ fontSize: '12px', marginBottom: '8px' }}>
+                <div style={{ marginBottom: '4px' }}>
+                    <strong>من:</strong> {delivery.pickup_address?.substring(0, 30)}...
+                </div>
+                <div style={{ marginBottom: '4px' }}>
+                    <strong>إلى:</strong> {delivery.delivery_address?.substring(0, 30)}...
+                </div>
+                <div style={{ marginBottom: '4px' }}>
+                    <strong>المبلغ:</strong> {formatSYP(delivery.total_price)}
+                </div>
+                <div style={{ marginBottom: '4px' }}>
+                    <strong>أرباحك:</strong> {formatSYP(delivery.driver_earnings || Math.floor(delivery.total_price * 0.70))}
+                </div>
+            </div>
+
+            {delivery.sender && (
+                <div style={{ fontSize: '11px', color: '#666', marginBottom: '8px' }}>
+                    <strong>المرسل:</strong> {delivery.sender.full_name}
+                </div>
+            )}
+
+            <div style={{ fontSize: '10px', color: '#999' }}>
+                {formatDateTime(delivery.created_at)}
+            </div>
+
+            {delivery.description && (
+                <div style={{ fontSize: '11px', color: '#666', marginTop: '6px', fontStyle: 'italic' }}>
+                    "{delivery.description.substring(0, 50)}..."
+                </div>
+            )}
+
+            {(delivery.pickup_instructions || delivery.delivery_instructions) && (
+                <div style={{ fontSize: '10px', color: '#e67e22', marginTop: '6px' }}>
+                    {delivery.pickup_instructions && '📝 تعليمات استلام '}
+                    {delivery.delivery_instructions && '📝 تعليمات توصيل'}
+                </div>
+            )}
+
+            {getActionButton(delivery, actions)}
+        </div>
+    );
+
     if (isLoading) {
         return (
             <div className="form-container">
@@ -100,25 +258,44 @@ const DriverDashboard = () => {
         );
     }
 
+    const totalDeliveries = Object.values(deliveriesByStatus).reduce((sum, arr) => sum + arr.length, 0);
+
     return (
-        <div className="form-container">
-            <div className="navigation">
+        <div style={{ margin: '0 auto', padding: '20px' }}>
+            <div className="navigation" style={{ marginBottom: '20px' }}>
                 <Link to="/">← العودة للرئيسية</Link>
                 <Link to="/deliveries">عرض جميع الطلبات</Link>
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                <h2>🚗 لوحة السائق</h2>
+            {/* Header */}
+            <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '20px',
+                padding: '15px',
+                backgroundColor: '#2c3e50',
+                color: 'white',
+                borderRadius: '8px'
+            }}>
+                <div>
+                    <h2 style={{ margin: 0 }}>🚗 لوحة السائق</h2>
+                    <p style={{ margin: '5px 0 0 0' }}>مرحباً {DEMO_USERS.DRIVER.full_name}</p>
+                </div>
+                <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: '24px', fontWeight: 'bold' }}>{totalDeliveries}</div>
+                    <div style={{ fontSize: '12px' }}>إجمالي الطلبات</div>
+                </div>
                 <button
                     className={`btn ${isAvailable ? 'btn-success' : 'btn-danger'}`}
                     onClick={toggleAvailability}
+                    style={{ fontSize: '16px', padding: '10px 20px' }}
                 >
                     {isAvailable ? '🟢 متاح' : '🔴 غير متاح'}
                 </button>
             </div>
 
-            <p>مرحباً {CURRENT_USER.full_name}</p>
-
+            {/* Notification */}
             {notification && (
                 <div style={{
                     padding: '10px',
@@ -126,99 +303,124 @@ const DriverDashboard = () => {
                     border: '1px solid #c3e6cb',
                     borderRadius: '4px',
                     marginBottom: '20px',
-                    color: '#155724'
+                    color: '#155724',
+                    textAlign: 'center',
+                    fontSize: '16px'
                 }}>
                     {notification}
                 </div>
             )}
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-                <div>
-                    <h3>طلبات جديدة ({pendingDeliveries.length})</h3>
-                    {pendingDeliveries.length === 0 ? (
-                        <p>لا توجد طلبات جديدة</p>
-                    ) : (
-                        pendingDeliveries.map(delivery => (
-                            <div key={delivery.id} className="delivery-card status-pending">
-                                <h4>كود: {delivery.delivery_code}</h4>
-                                <p><strong>من:</strong> {delivery.pickup_address}</p>
-                                <p><strong>إلى:</strong> {delivery.delivery_address}</p>
-                                <p><strong>النوع:</strong> {formatDeliveryMode(delivery.delivery_mode)}</p>
-                                <p><strong>الحجم:</strong> {formatParcelSize(delivery.parcel_size)}</p>
-                                <p><strong>المبلغ:</strong> {formatSYP(delivery.total_price)}</p>
-                                <p><strong>أرباحك:</strong> {formatSYP(delivery.driver_earnings || Math.floor(delivery.total_price * 0.70))}</p>
-                                <p><strong>المرسل:</strong> {delivery.sender?.full_name}</p>
-                                <p><strong>الوقت:</strong> {formatDateTime(delivery.created_at)}</p>
-
-                                {delivery.description && (
-                                    <p><strong>الوصف:</strong> {delivery.description}</p>
-                                )}
-
-                                <button
-                                    className="btn btn-success"
-                                    onClick={() => handleAcceptDelivery(delivery.id)}
-                                    disabled={!isAvailable}
-                                >
-                                    قبول الطلب
-                                </button>
+            {/* Kanban Board */}
+            <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+                gap: '15px',
+                minHeight: '600px'
+            }}>
+                {kanbanColumns.map(column => (
+                    <div
+                        key={column.status}
+                        style={{
+                            backgroundColor: '#f8f9fa',
+                            borderRadius: '8px',
+                            padding: '15px',
+                            border: `3px solid ${column.color}`,
+                            minHeight: '500px'
+                        }}
+                    >
+                        {/* Column Header */}
+                        <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            marginBottom: '15px',
+                            paddingBottom: '10px',
+                            borderBottom: `2px solid ${column.color}`
+                        }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <span style={{ fontSize: '20px' }}>{column.icon}</span>
+                                <h3 style={{
+                                    margin: 0,
+                                    color: column.color,
+                                    fontSize: '16px',
+                                    fontWeight: 'bold'
+                                }}>
+                                    {column.title}
+                                </h3>
                             </div>
-                        ))
-                    )}
-                </div>
+                            <span style={{
+                                backgroundColor: column.color,
+                                color: 'white',
+                                borderRadius: '50%',
+                                width: '24px',
+                                height: '24px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                fontSize: '12px',
+                                fontWeight: 'bold'
+                            }}>
+                                {deliveriesByStatus[column.status].length}
+                            </span>
+                        </div>
 
-                <div>
-                    <h3>طلباتي ({assignedDeliveries.length})</h3>
-                    {assignedDeliveries.length === 0 ? (
-                        <p>لا توجد طلبات مُسندة إليك</p>
-                    ) : (
-                        assignedDeliveries.map(delivery => (
-                            <div key={delivery.id} className={`delivery-card status-${delivery.status}`}>
-                                <h4>كود: {delivery.delivery_code}</h4>
-                                <p><strong>من:</strong> {delivery.pickup_address}</p>
-                                <p><strong>إلى:</strong> {delivery.delivery_address}</p>
-                                <p><strong>الحالة:</strong> {delivery.status}</p>
-                                <p><strong>المبلغ:</strong> {formatSYP(delivery.total_price)}</p>
-
-                                {delivery.pickup_instructions && (
-                                    <p><strong>تعليمات الاستلام:</strong> {delivery.pickup_instructions}</p>
-                                )}
-
-                                {delivery.delivery_instructions && (
-                                    <p><strong>تعليمات التوصيل:</strong> {delivery.delivery_instructions}</p>
-                                )}
-
-                                <div style={{ marginTop: '10px' }}>
-                                    {delivery.status === 'assigned' && (
-                                        <button
-                                            className="btn"
-                                            onClick={() => handleStatusUpdate(delivery.id, 'picked_up')}
-                                        >
-                                            تم الاستلام
-                                        </button>
-                                    )}
-
-                                    {delivery.status === 'picked_up' && (
-                                        <button
-                                            className="btn"
-                                            onClick={() => handleStatusUpdate(delivery.id, 'in_transit')}
-                                        >
-                                            في الطريق
-                                        </button>
-                                    )}
-
-                                    {delivery.status === 'in_transit' && (
-                                        <button
-                                            className="btn btn-success"
-                                            onClick={() => handleStatusUpdate(delivery.id, 'delivered')}
-                                        >
-                                            تم التوصيل
-                                        </button>
-                                    )}
+                        {/* Column Content */}
+                        <div style={{ minHeight: '400px' }}>
+                            {deliveriesByStatus[column.status].length === 0 ? (
+                                <div style={{
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    height: '200px',
+                                    color: '#999',
+                                    textAlign: 'center'
+                                }}>
+                                    <div style={{ fontSize: '40px', marginBottom: '10px', opacity: 0.3 }}>
+                                        {column.icon}
+                                    </div>
+                                    <div>لا توجد طلبات</div>
                                 </div>
-                            </div>
-                        ))
-                    )}
-                </div>
+                            ) : (
+                                deliveriesByStatus[column.status].map(delivery => (
+                                    <DeliveryCard
+                                        key={delivery.id}
+                                        delivery={delivery}
+                                        actions={column.actions}
+                                    />
+                                ))
+                            )}
+                        </div>
+                    </div>
+                ))}
+            </div>
+
+            {/* Summary Stats */}
+            <div style={{
+                marginTop: '20px',
+                padding: '15px',
+                backgroundColor: '#ecf0f1',
+                borderRadius: '8px',
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+                gap: '15px',
+                textAlign: 'center'
+            }}>
+                {kanbanColumns.map(column => (
+                    <div key={column.status}>
+                        <div style={{
+                            fontSize: '20px',
+                            fontWeight: 'bold',
+                            color: column.color
+                        }}>
+                            {deliveriesByStatus[column.status].length}
+                        </div>
+                        <div style={{ fontSize: '12px', color: '#666' }}>
+                            {column.title}
+                        </div>
+                    </div>
+                ))}
             </div>
         </div>
     );
