@@ -6,6 +6,7 @@ import { PARCEL_SIZES, DELIVERY_MODES, DEMO_USERS } from '../utils/constants';
 import { calculatePrice, formatSYP, validateDeliveryForm, initializeCurrency } from '../utils/helpers';
 import MapPicker from './MapPicker';
 import PriceDisplay from './PriceDisplay';
+import CostDisplay from './CostDisplay';
 
 const SendPackageWithMap = () => {
     const navigate = useNavigate();
@@ -663,6 +664,11 @@ const SendPackageWithMap = () => {
                             <PriceDisplay amount={Math.floor(estimatedPrice * 0.70)} />
                         </div>
                         <small>المسافة: {distance.toFixed(2)} كم</small>
+
+                        <CostDisplay
+                            distance={distance.toFixed(2)}
+                            parcelSize={formData.parcelSize}
+                        />
                     </div>
                 )}
 
